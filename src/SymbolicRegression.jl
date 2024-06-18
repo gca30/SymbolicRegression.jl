@@ -152,6 +152,7 @@ end
 using DispatchDoctor: @stable
 
 @stable default_mode = "disable" begin
+    include("SVM.jl")
     include("Utils.jl")
     include("InterfaceDynamicQuantities.jl")
     include("Core.jl")

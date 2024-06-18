@@ -9,7 +9,8 @@ using DynamicQuantities:
     sym_uparse,
     DEFAULT_DIM_BASE_TYPE
 
-using ..UtilsModule: subscriptify, get_base_type, @constfield
+using ..SVMModule
+using ..UtilsModule: subscriptify, @constfield
 using ..ProgramConstantsModule: BATCH_DIM, FEATURE_DIM, DATA_TYPE, LOSS_TYPE
 using ...InterfaceDynamicQuantitiesModule: get_si_units, get_sym_units
 
@@ -158,11 +159,11 @@ function Dataset(
         if weighted
             sum(y .* weights) / sum(weights)
         else
-            sum(y) / n
+            sum(y) / T(n)
         end
     end
     out_loss_type = if L === Nothing
-        T <: Complex ? get_base_type(T) : T
+        get_base_type(T)
     else
         L
     end
@@ -223,6 +224,7 @@ function Dataset(
         y_sym_units,
     )
 end
+
 function Dataset(
     X::AbstractMatrix,
     y::Union{<:AbstractVector,Nothing}=nothing;
