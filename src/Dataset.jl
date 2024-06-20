@@ -9,7 +9,7 @@ using DynamicQuantities:
     sym_uparse,
     DEFAULT_DIM_BASE_TYPE
 
-using ..SVMModule
+using ...TypeInterfaceModule: get_base_type
 using ..UtilsModule: subscriptify, @constfield
 using ..ProgramConstantsModule: BATCH_DIM, FEATURE_DIM, DATA_TYPE, LOSS_TYPE
 using ...InterfaceDynamicQuantitiesModule: get_si_units, get_sym_units
@@ -159,11 +159,12 @@ function Dataset(
         if weighted
             sum(y .* weights) / sum(weights)
         else
-            sum(y) / T(n)
+            sum(y) / convert(T, n) # TC1, TC2, TC4
         end
     end
+
     out_loss_type = if L === Nothing
-        get_base_type(T)
+        get_base_type(T) # TC3
     else
         L
     end

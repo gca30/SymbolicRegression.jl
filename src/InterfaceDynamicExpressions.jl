@@ -56,10 +56,16 @@ which speed up evaluation significantly.
 function eval_tree_array(
     tree::AbstractExpressionNode, X::AbstractArray, options::Options; kws...
 )
-    A = expected_array_type(X)
-    return eval_tree_array(
-        tree, X, options.operators; turbo=options.turbo, bumper=options.bumper, kws...
-    )::Tuple{A,Bool}
+    A = AbstractArray{eltype(X)}
+    if eltype(X) <: Number
+        eval_tree_array(
+            tree, X, options.operators; turbo=options.turbo, bumper=options.bumper, kws...
+        )::Tuple{A,Bool}
+    else
+        return eval_tree_array(
+            tree, X, options.operators; kws...
+        )::Tuple{A, Bool}
+    end
 end
 
 # Improve type inference by telling Julia the expected array returned

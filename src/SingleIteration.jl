@@ -118,7 +118,7 @@ function optimize_and_simplify_population(
             end
             pop.members[j].tree = tree
         end
-        if options.should_optimize_constants && do_optimization[j]
+        if options.should_optimize_constants && do_optimization[j] && T<:Number
             # TODO: Might want to do full batch optimization here?
             pop.members[j], array_num_evals[j] = optimize_constants(
                 dataset, pop.members[j], options

@@ -4,7 +4,7 @@ using DispatchDoctor: @unstable
 using Optim: Optim
 using Dates: Dates
 using StatsBase: StatsBase
-using DynamicExpressions: OperatorEnum, Node
+using DynamicExpressions: OperatorEnum, GenericOperatorEnum, Node
 using Distributed: nworkers
 using LossFunctions: L2DistLoss, SupervisedLoss
 using Optim: Optim
@@ -380,6 +380,7 @@ $(OPTION_DESCRIPTIONS)
     binary_operators=Function[+, -, /, *],
     unary_operators=Function[],
     constraints=nothing,
+    generic_operators=false,
     elementwise_loss::Union{Function,SupervisedLoss,Nothing}=nothing,
     loss_function::Union{Function,Nothing}=nothing,
     tournament_selection_n::Integer=12, #1 sampled from every tournament_selection_n per mutation
@@ -658,11 +659,17 @@ $(OPTION_DESCRIPTIONS)
         maxdepth = maxsize
     end
 
+    OE_constructor = if generic_operators
+        GenericOperatorEnum
+    else
+        OperatorEnum
+    end
+
     if define_helper_functions
         # We call here so that mapped operators, like ^
         # are correctly overloaded, rather than overloading
         # operators like "safe_pow", etc.
-        OperatorEnum(;
+        OE_constructor(;
             binary_operators=binary_operators,
             unary_operators=unary_operators,
             define_helper_functions=true,
@@ -673,7 +680,7 @@ $(OPTION_DESCRIPTIONS)
     binary_operators = map(binopmap, binary_operators)
     unary_operators = map(unaopmap, unary_operators)
 
-    operators = OperatorEnum(;
+    operators = OE_constructor(;
         binary_operators=binary_operators,
         unary_operators=unary_operators,
         define_helper_functions=define_helper_functions,

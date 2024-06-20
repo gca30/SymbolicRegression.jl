@@ -1,7 +1,6 @@
 module CoreModule
 
 include("Utils.jl")
-include("SVM.jl")
 include("ProgramConstants.jl")
 include("Dataset.jl")
 include("MutationWeights.jl")

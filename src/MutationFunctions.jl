@@ -11,6 +11,7 @@ using DynamicExpressions:
     count_nodes,
     has_constants,
     has_operators
+using ..TypeInterfaceModule: get_base_type, mutate_value
 using Compat: Returns, @inline
 using ..CoreModule: Options, DATA_TYPE
 
@@ -69,22 +70,18 @@ function mutate_constant(
         return tree
     end
     node = rand(rng, NodeSampler(; tree, filter=t -> (t.degree == 0 && t.constant)))
+    if node === nothing
+        return tree
+    end
 
     bottom = 1//10
-    maxChange = options.perturbation_factor * temperature + 1 + bottom
-    factor = T(maxChange^rand(rng, T))
-    makeConstBigger = rand(rng, Bool)
-
-    if makeConstBigger
-        node.val *= factor
-    else
-        node.val /= factor
-    end
-
+    maxChange = convert(get_base_type(T), options.perturbation_factor * temperature + 1 + bottom)
     if rand(rng) > options.probability_negate_constant
-        node.val *= -1
+        maxChange = -maxChange
     end
 
+    node.val = mutate_value(rng, maxChange, node.val)
+    
     return tree
 end
 
@@ -96,6 +93,7 @@ function append_random_op(
     rng::AbstractRNG=default_rng();
     makeNewBinOp::Union{Bool,Nothing}=nothing,
 ) where {T<:DATA_TYPE}
+    # println("append_random_op")
     node = rand(rng, NodeSampler(; tree, filter=t -> t.degree == 0))
 
     if makeNewBinOp === nothing
@@ -167,6 +165,7 @@ end
 function make_random_leaf(
     nfeatures::Int, ::Type{T}, ::Type{N}, rng::AbstractRNG=default_rng()
 ) where {T<:DATA_TYPE,N<:AbstractExpressionNode}
+    # println("make_random_leaf")
     if rand(rng, Bool)
         return constructorof(N)(; val=randn(rng, T))
     else
@@ -238,6 +237,7 @@ function gen_random_tree(
     length::Int, options::Options, nfeatures::Int, ::Type{T}, rng::AbstractRNG=default_rng()
 ) where {T<:DATA_TYPE}
     # Note that this base tree is just a placeholder; it will be replaced.
+    # println("gen_random_tree")
     tree = constructorof(options.node_type)(T; val=convert(T, 1))
     for i in 1:length
         # TODO: This can be larger number of nodes than length.
@@ -253,6 +253,7 @@ function gen_random_tree_fixed_size(
     ::Type{T},
     rng::AbstractRNG=default_rng(),
 ) where {T<:DATA_TYPE}
+    # println("gen_random_tree_fixed_size")
     tree = make_random_leaf(nfeatures, T, options.node_type, rng)
     cur_size = count_nodes(tree)
     while cur_size < node_count

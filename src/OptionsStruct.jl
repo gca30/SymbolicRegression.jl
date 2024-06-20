@@ -116,8 +116,10 @@ end
 function operator_specialization end
 if VERSION >= v"1.10.0-DEV.0"
     @eval operator_specialization(::Type{<:OperatorEnum}) = OperatorEnum
+    @eval operator_specialization(::Type{<:GenericOperatorEnum}) = GenericOperatorEnum
 else
     @eval operator_specialization(O::Type{<:OperatorEnum}) = O
+    @eval operator_specialization(O::Type{<:GenericOperatorEnum}) = O
 end
 
 struct Options{

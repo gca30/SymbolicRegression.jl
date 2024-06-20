@@ -152,8 +152,8 @@ end
 using DispatchDoctor: @stable
 
 @stable default_mode = "disable" begin
-    include("SVM.jl")
     include("Utils.jl")
+    include("TypeInterface.jl")
     include("InterfaceDynamicQuantities.jl")
     include("Core.jl")
     include("InterfaceDynamicExpressions.jl")
@@ -363,7 +363,7 @@ function equation_search(
     y::AbstractMatrix{T};
     niterations::Int=10,
     weights::Union{AbstractMatrix{T},AbstractVector{T},Nothing}=nothing,
-    options::Options=Options(),
+    options::Options=Options(; generic_operators=!(T<:Number)),
     variable_names::Union{AbstractVector{String},Nothing}=nothing,
     display_variable_names::Union{AbstractVector{String},Nothing}=variable_names,
     y_variable_names::Union{String,AbstractVector{String},Nothing}=nothing,

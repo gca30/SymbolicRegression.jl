@@ -189,22 +189,25 @@ function next_generation(
 
             is_success_always_possible = true
         elseif mutation_choice == :optimize
-            cur_member = PopMember(
-                tree,
-                beforeScore,
-                beforeLoss,
-                options,
-                compute_complexity(member, options);
-                parent=parent_ref,
-                deterministic=options.deterministic,
-            )
-            cur_member, new_num_evals = optimize_constants(dataset, cur_member, options)
-            num_evals += new_num_evals
-            @recorder tmp_recorder["type"] = "optimize"
-            mutation_accepted = true
-            return (cur_member, mutation_accepted, num_evals)
+            if (T <: Number)
+            
+                cur_member = PopMember(
+                    tree,
+                    beforeScore,
+                    beforeLoss,
+                    options,
+                    compute_complexity(member, options);
+                    parent=parent_ref,
+                    deterministic=options.deterministic,
+                )
+                cur_member, new_num_evals = optimize_constants(dataset, cur_member, options)
+                num_evals += new_num_evals
+                @recorder tmp_recorder["type"] = "optimize"
+                mutation_accepted = true
+                return (cur_member, mutation_accepted, num_evals)
+            end
 
-            is_success_always_possible = true
+            is_success_always_possible = T <: Number
         elseif mutation_choice == :do_nothing
             @recorder begin
                 tmp_recorder["type"] = "identity"
