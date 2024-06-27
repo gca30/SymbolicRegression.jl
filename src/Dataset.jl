@@ -153,7 +153,7 @@ function Dataset(
     else
         y_variable_name
     end
-    avg_y = if y === nothing
+    avg_y = if y === nothing || !(T <: Number)
         nothing
     else
         if weighted

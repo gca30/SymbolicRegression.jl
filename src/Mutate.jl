@@ -30,6 +30,7 @@ using ..MutationFunctionsModule:
     break_random_connection!
 using ..ConstantOptimizationModule: optimize_constants
 using ..RecorderModule: @recorder
+using Random: default_rng
 
 function condition_mutation_weights!(
     weights::MutationWeights, member::PopMember, options::Options, curmaxsize::Int
@@ -103,6 +104,7 @@ function next_generation(
     nfeatures = dataset.nfeatures
 
     weights = copy(options.mutation_weights)
+    #@show weights
 
     condition_mutation_weights!(weights, member, options, curmaxsize)
 
@@ -122,22 +124,26 @@ function next_generation(
         tree = copy_node(member.tree)
         successful_mutation = true
         if mutation_choice == :mutate_constant
+            #@show "mutate_constant"
             tree = mutate_constant(tree, temperature, options)
             @recorder tmp_recorder["type"] = "constant"
             is_success_always_possible = true
             # Mutating a constant shouldn't invalidate an already-valid function
         elseif mutation_choice == :mutate_operator
+            #@show "mutate_operator"
             tree = mutate_operator(tree, options)
             @recorder tmp_recorder["type"] = "operator"
             is_success_always_possible = true
             # Can always mutate to the same operator
 
         elseif mutation_choice == :swap_operands
+            #@show "swap_operands"
             tree = swap_operands(tree)
             @recorder tmp_recorder["type"] = "swap_operands"
             is_success_always_possible = true
 
         elseif mutation_choice == :add_node
+            #@show "add_node"
             if rand() < 0.5
                 tree = append_random_op(tree, options, nfeatures)
                 @recorder tmp_recorder["type"] = "append_op"
@@ -148,15 +154,19 @@ function next_generation(
             is_success_always_possible = false
             # Can potentially have a situation without success
         elseif mutation_choice == :insert_node
+            #@show "insert_node"
             tree = insert_random_op(tree, options, nfeatures)
             @recorder tmp_recorder["type"] = "insert_op"
             is_success_always_possible = false
         elseif mutation_choice == :delete_node
+            #@show "delete_node"
             tree = delete_random_op!(tree, options, nfeatures)
             @recorder tmp_recorder["type"] = "delete_op"
             is_success_always_possible = true
         elseif mutation_choice == :simplify
+            #@show "simplify"
             @assert options.should_simplify
+            #@show "simplify"
             simplify_tree!(tree, options.operators)
             if tree isa Node
                 tree = combine_operators(tree, options.operators)
@@ -181,34 +191,35 @@ function next_generation(
             # to commutative operator...
 
         elseif mutation_choice == :randomize
+            #@show "randomize"
             # We select a random size, though the generated tree
             # may have fewer nodes than we request.
             tree_size_to_generate = rand(1:curmaxsize)
-            tree = gen_random_tree_fixed_size(tree_size_to_generate, options, nfeatures, T)
+            tree = gen_random_tree_fixed_size(tree_size_to_generate, options, nfeatures, T, default_rng())
             @recorder tmp_recorder["type"] = "regenerate"
 
             is_success_always_possible = true
         elseif mutation_choice == :optimize
-            if (T <: Number)
-            
-                cur_member = PopMember(
-                    tree,
-                    beforeScore,
-                    beforeLoss,
-                    options,
-                    compute_complexity(member, options);
-                    parent=parent_ref,
-                    deterministic=options.deterministic,
-                )
-                cur_member, new_num_evals = optimize_constants(dataset, cur_member, options)
-                num_evals += new_num_evals
-                @recorder tmp_recorder["type"] = "optimize"
-                mutation_accepted = true
-                return (cur_member, mutation_accepted, num_evals)
-            end
+            #@show "optimize"
+            #@show "optimize"
+            is_success_always_possible = true
+            cur_member = PopMember(
+                tree,
+                beforeScore,
+                beforeLoss,
+                options,
+                compute_complexity(member, options);
+                parent=parent_ref,
+                deterministic=options.deterministic,
+            )
+            cur_member, new_num_evals = optimize_constants(dataset, cur_member, options)
+            num_evals += new_num_evals
+            @recorder tmp_recorder["type"] = "optimize"
+            mutation_accepted = true
+            return (cur_member, mutation_accepted, num_evals)
 
-            is_success_always_possible = T <: Number
         elseif mutation_choice == :do_nothing
+            #@show "do_nothing"
             @recorder begin
                 tmp_recorder["type"] = "identity"
                 tmp_recorder["result"] = "accept"
@@ -229,10 +240,12 @@ function next_generation(
                 num_evals,
             )
         elseif mutation_choice == :form_connection
+            #@show "form_connection"
             tree = form_random_connection!(tree)
             @recorder tmp_recorder["type"] = "form_connection"
             is_success_always_possible = true
         elseif mutation_choice == :break_connection
+            #@show "break_connection"
             tree = break_random_connection!(tree)
             @recorder tmp_recorder["type"] = "break_connection"
             is_success_always_possible = true

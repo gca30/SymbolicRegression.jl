@@ -37,7 +37,7 @@ Base.@kwdef mutable struct MutationWeights
     simplify::Float64 = 0.0020
     randomize::Float64 = 0.00023
     do_nothing::Float64 = 0.21
-    optimize::Float64 = 0.0
+    optimize::Float64 = 0.0010
     form_connection::Float64 = 0.5
     break_connection::Float64 = 0.1
 end

@@ -24,7 +24,7 @@ function dispatch_optimize_constants(
 ) where {T<:DATA_TYPE,L<:LOSS_TYPE,P<:PopMember{T,L}}
     nconst = count_constants(member.tree)
     nconst == 0 && return (member, 0.0)
-    if nconst == 1 && !(T <: Complex)
+    if nconst == 1 && T <: Number && !(T <: Complex)
         algorithm = Optim.Newton(; linesearch=LineSearches.BackTracking())
         return _optimize_constants(
             dataset, member, options, algorithm, options.optimizer_options, idx

@@ -1,7 +1,7 @@
 module PopulationModule
 
 using StatsBase: StatsBase
-using Random: randperm
+using Random: randperm, default_rng
 using DispatchDoctor: @unstable
 using DynamicExpressions: AbstractExpressionNode, Node, string_tree
 using ..CoreModule: Options, Dataset, RecordType, DATA_TYPE, LOSS_TYPE
@@ -51,7 +51,7 @@ function Population(
         [
             PopMember(
                 dataset,
-                gen_random_tree(nlength, options, nfeatures, T),
+                gen_random_tree(nlength, options, nfeatures, T, default_rng()),
                 options;
                 parent=-1,
                 deterministic=options.deterministic,

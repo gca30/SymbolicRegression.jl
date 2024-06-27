@@ -84,7 +84,7 @@ using DynamicExpressions:
     print_tree,
     count_nodes,
     get_constants,
-    set_constants,
+    set_constants!,
     index_constants,
     NodeIndex,
     eval_tree_array,
@@ -152,8 +152,8 @@ end
 using DispatchDoctor: @stable
 
 @stable default_mode = "disable" begin
-    include("Utils.jl")
     include("TypeInterface.jl")
+    include("Utils.jl")
     include("InterfaceDynamicQuantities.jl")
     include("Core.jl")
     include("InterfaceDynamicExpressions.jl")
@@ -1143,7 +1143,7 @@ macro ignore(args...) end
 include("precompile.jl")
 redirect_stdout(devnull) do
     redirect_stderr(devnull) do
-        do_precompilation(Val(:precompile))
+        # do_precompilation(Val(:precompile))
     end
 end
 

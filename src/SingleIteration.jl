@@ -45,7 +45,7 @@ function s_r_cycle(
     # For evaluating on a fixed batch (for batching)
     idx = options.batching ? batch_sample(dataset, options) : Int[]
     loss_cache = [
-        (oid=constructorof(typeof(member.tree))(T; val=zero(T)), score=zero(L)) for
+        (oid=constructorof(typeof(member.tree))(T; val=T<:Number ? zero(T) : T()), score=zero(L)) for
         member in pop.members
     ]
     first_loop = true
