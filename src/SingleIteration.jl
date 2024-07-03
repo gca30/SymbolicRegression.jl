@@ -45,8 +45,10 @@ function s_r_cycle(
     # For evaluating on a fixed batch (for batching)
     idx = options.batching ? batch_sample(dataset, options) : Int[]
     loss_cache = [
-        (oid=constructorof(typeof(member.tree))(T; val=T<:Number ? zero(T) : T()), score=zero(L)) for
-        member in pop.members
+        (
+            oid=constructorof(typeof(member.tree))(T; val=T <: Number ? zero(T) : T()),
+            score=zero(L),
+        ) for member in pop.members
     ]
     first_loop = true
 
@@ -118,7 +120,7 @@ function optimize_and_simplify_population(
             end
             pop.members[j].tree = tree
         end
-        if options.should_optimize_constants && do_optimization[j] && T<:Number
+        if options.should_optimize_constants && do_optimization[j] && T <: Number
             # TODO: Might want to do full batch optimization here?
             pop.members[j], array_num_evals[j] = optimize_constants(
                 dataset, pop.members[j], options

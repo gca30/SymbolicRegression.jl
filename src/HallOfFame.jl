@@ -50,7 +50,7 @@ function HallOfFame(
     return HallOfFame{T,L,NT}(
         [
             PopMember(
-                constructorof(options.node_type)(T; val= T<:Number ? convert(T, 1) : T()),
+                constructorof(options.node_type)(T; val=T <: Number ? convert(T, 1) : T()),
                 L(0),
                 L(Inf),
                 options;

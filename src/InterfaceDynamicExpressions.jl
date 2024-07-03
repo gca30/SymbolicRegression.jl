@@ -55,8 +55,17 @@ which speed up evaluation significantly.
 """
 function eval_tree_array(
     tree::NT, X::XT, options::OT; kws...
-) :: Tuple{AbstractArray{T1}, Bool} where {T1,T2, CM, NT <: AbstractExpressionNode{T1}, OT <: Options{CM, OperatorEnum}, XT <: AbstractArray{T2}} 
-    cX = X    
+)::Tuple{
+    AbstractArray{T1},Bool
+} where {
+    T1,
+    T2,
+    CM,
+    NT<:AbstractExpressionNode{T1},
+    OT<:Options{CM,OperatorEnum},
+    XT<:AbstractArray{T2},
+}
+    cX = X
     if T1 !== T2
         @warn "Different types in eval_tree_array"
         if !(T1 <: Number && T2 <: Number)
@@ -64,9 +73,13 @@ function eval_tree_array(
         end
         cX = map(x -> convert(T1, x), X)
     end
-    eval_tree_array(
-        tree, cX, options.operators; 
-        turbo=options.turbo, bumper = T1 <:Number ? options.bumper : Val(false), kws...
+    return eval_tree_array(
+        tree,
+        cX,
+        options.operators;
+        turbo=options.turbo,
+        bumper=T1 <: Number ? options.bumper : Val(false),
+        kws...,
     )
 end
 

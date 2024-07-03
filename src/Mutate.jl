@@ -195,7 +195,9 @@ function next_generation(
             # We select a random size, though the generated tree
             # may have fewer nodes than we request.
             tree_size_to_generate = rand(1:curmaxsize)
-            tree = gen_random_tree_fixed_size(tree_size_to_generate, options, nfeatures, T, default_rng())
+            tree = gen_random_tree_fixed_size(
+                tree_size_to_generate, options, nfeatures, T, default_rng()
+            )
             @recorder tmp_recorder["type"] = "regenerate"
 
             is_success_always_possible = true

@@ -75,13 +75,15 @@ function mutate_constant(
     end
 
     bottom = 1//10
-    maxChange = convert(get_base_type(T), options.perturbation_factor * temperature + 1 + bottom)
+    maxChange = convert(
+        get_base_type(T), options.perturbation_factor * temperature + 1 + bottom
+    )
     if rand(rng) > options.probability_negate_constant
         maxChange = -maxChange
     end
 
     node.val = mutate_value(rng, maxChange, node.val)
-    
+
     return tree
 end
 
@@ -234,11 +236,11 @@ end
 
 """Create a random equation by appending random operators"""
 function gen_random_tree(
-    length::Int, options::Options, nfeatures::Int, ::Type{T}, rng::AbstractRNG = default_rng()
+    length::Int, options::Options, nfeatures::Int, ::Type{T}, rng::AbstractRNG=default_rng()
 ) where {T<:DATA_TYPE}
     # Note that this base tree is just a placeholder; it will be replaced.
     # println("gen_random_tree")
-    tree = constructorof(options.node_type)(T; val= T<:Number ? convert(T, 1) : T())
+    tree = constructorof(options.node_type)(T; val=T <: Number ? convert(T, 1) : T())
     for i in 1:length
         # TODO: This can be larger number of nodes than length.
         tree = append_random_op(tree, options, nfeatures, rng)
@@ -251,7 +253,7 @@ function gen_random_tree_fixed_size(
     options::Options,
     nfeatures::Int,
     ::Type{T},
-    rng::AbstractRNG = default_rng(),
+    rng::AbstractRNG=default_rng(),
 ) where {T<:DATA_TYPE}
     # println("gen_random_tree_fixed_size")
     tree = make_random_leaf(nfeatures, T, options.node_type, rng)

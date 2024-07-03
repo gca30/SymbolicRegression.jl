@@ -30,8 +30,8 @@ end
 const TEST_INPUTS = collect(range(-100, 100; length=99))
 
 function assert_operators_well_defined(T, options::Options)
-    if !(T<:Number)
-        return
+    if !(T <: Number)
+        return nothing
     end
     test_input = if T <: Complex
         (x -> convert(T, x)).(TEST_INPUTS .+ TEST_INPUTS .* im)
