@@ -5,10 +5,57 @@ using ..NodeModule: Node
 mutable struct DifferentiableNodeValue{T}
     node::Node{T}
     value::T
-    has_consts_l::Bool # whether a tree has constant children on its left side
-    has_consts_r::Bool # whether a tree has constant children on its right side
+    has_consts_l::Bool # whether a tree has any constant children on its left side
+    has_consts_r::Bool # whether a tree has any constant children on its right side
     derivative_l::T
     derivative_r::T
+end
+
+@inline multiply_jacobian(next_der, prev_der, J) = begin
+    next_der .= reshape(transpose(J) * reshape(prev_der, length(prev_der)), size(next_der))
+end
+
+# An operator needs a lot of 
+struct OperatorInfo{Fdirect, Finplace, Fconstraint, Fgradient, Fcomplexity}
+    degree::UInt8 # degree of operator
+    T::DataType # type it works on
+    op::Fdirect # actual operator (T[, T]) -> T
+    op!::Finplace # in place operator (T, T[, T]) -> nothing
+    gen_constraints::Fconstraint # generate constraints for shape 
+    gradient!::Fgradient # in place gradient function (∂out::T, l::T, ∂l::T[, r::T, ∂r::T]) -> nothing
+    get_complexity::Fcomplexity # complexity of the operator as a funcition of their shapes
+
+    OperatorInfo(
+        degree, T; op,
+        op! = if degree == 1
+            (out, x) -> @. out = op(x)
+        else
+            (out, x, y) -> @. out = op(x, y)
+        end,
+        gen_constraints = if degree == 1
+            append_constraints_unary_all_equal
+        else
+            append_constraints_binary_all_equal
+        end,
+        gradient! = if degree == 1
+            (∂out::T, l::T, ∂l::T) -> multiply_jacobian(∂l, ∂out, jacobian(op, l)[1])
+        else
+            (∂out::T, l::T, ∂l::T, r::T, ∂r::T) -> begin
+                Js = jacobian(op, l, r)
+                multiply_jacobian(∂l, ∂out, Js[1])
+                multiply_jacobian(∂r, ∂out, Js[2])
+            end
+        end,
+        get_complexity = if degree == 1
+            (shape) -> prod(shape)
+        else
+            (shape_a, shape_b) -> prod(map(maximum, zip(shape_a, shape_b)))
+        end
+    ) = begin 
+        @assert degree == 1 || degree == 2
+        @assert T <: AbstractArray
+        new(degree, T, op, op!, gen_constraints, gradient!, get_complexity)
+    end
 end
 
 mutable struct OptimizeFrame{T,BT,LFT,OPT}
@@ -18,7 +65,6 @@ mutable struct OptimizeFrame{T,BT,LFT,OPT}
     root_derivative::T
     loss_func::LFT
     constants::Vector{BT}
-    derivatives::Vector{BT}
     refs::Vector{Ref{Node{T}}}
     index::Dict{Node{T}, DifferentiableNodeValue{T}}
     computed::UInt8
@@ -30,34 +76,40 @@ end
 function make_frame(tree::Node{AT}, cX::AbstractVector{ATP1}, shapes::Dict{Node{AT}, NTuple{N, Int64}}, operators::OperatorEnum, allocator::F, loss_function::LFT) where {BT,N,F,AT<:AbstractArray{BT,N},NP1,ATP1<:AbstractArray{BT,NP1},LFT} 
 #= ::OptimizeFrame{AT,BT}, with F function from NTuple{N, Int64} to ATP1 or nothing to empty =#
     index = Dict{Node{T}, DifferentiableNodeValue{T}}()
+    zeros = ntuple(Returns(0), Val(NP1))
     datapoints = size(cX[1], 1)
     add_node(node::Node{AT}) = begin
         if node.degree == 0
-            index[node] = DifferentiableNodeValue(
-                node, node.constant ? allocator(size(node.val)) : cX[node.feature], node.constant, false, node.constant ? allocator(shapes[node]) : allocator(), allocator()
-            )
+            if node.constant
+                index[node] = DifferentiableNodeValue(
+                    node, allocator(datapoints, size(node.val)...), true, false, allocator(1, shapes[node]...), allocator(zeros)
+                )
+            else
+                index[node] = DifferentiableNodeValue(
+                    node, cX[node.feature], false, false, allocator(zeros), allocator(zeros)
+                )
+            end
             return node.constant
         elseif node.degree == 1
             has_consts = add_node(node.l) 
             index[node] = DifferentiableNodeValue(
-                node, allocator(shapes[node]), has_consts, false, has_consts ? allocator(shapes[node.l]) : allocator(), allocator()
+                node, allocator(datapoints, shapes[node]...), has_consts, false, has_consts ? allocator(datapoints, shapes[node.l]...) : allocator(zeros), allocator(zeros)
             )
             return has_consts
         else
             has_consts_l = add_node(node.l)
             has_consts_r = add_node(node.r) 
             index[node] = DifferentiableNodeValue(
-                node, allocator(shapes[node]), has_consts_l, has_consts_r, 
-                has_consts_l ? allocator(shapes[node.l]) : allocator(), 
-                has_consts_r ? allocator(shapes[node.r]) : allocator()
+                node, allocator(datapoints, shapes[node]...), has_consts_l, has_consts_r, 
+                has_consts_l ? allocator(datapoints, shapes[node.l]...) : allocator(), 
+                has_consts_r ? allocator(datapoints, shapes[node.r]...) : allocator()
             )
             return has_consts_l || has_consts_r
         end
     end
     constants, refs = get_constants(tree)
-    derivatives = Vector{BT}(undef, length(constants))
-    root_derivative = allocator(shapes[tree])
-    OptimizeFrame(tree, operators, zero(BT), root_derivative, loss_function, constants, derivatives, refs, index, 0)
+    root_derivative = allocator(datapoints, shapes[tree]...)
+    OptimizeFrame(tree, operators, zero(BT), root_derivative, loss_function, constants, refs, index, 0)
 end
 
 function eval_frame_node(frame::OptimizeFrame{T,BT,LFT}, node::Node{T}) where {T, BT, LFT}
@@ -70,6 +122,7 @@ function eval_frame_node(frame::OptimizeFrame{T,BT,LFT}, node::Node{T}) where {T
     elseif node.degree == 1
         op = frame.operators.unaops[node.op]
         eval_frame_node(frame, node.l)
+        # currenlty when you use this it still allocs memory
         index[node].value .= op(index[node.l].value)
     elseif node.degree == 2
         op = frame.operators.binops[node.op]
@@ -96,9 +149,7 @@ function eval_frame(frame::OptimizeFrame{T,BT,LFT}) where {T,BT,LFT}
     return frame.value
 end
 
-@inline multiply_jacobian(next_der, prev_der, J) = begin
-    next_der .= reshape(transpose(J) * reshape(prev_der, length(prev_der)), size(next_der))
-end
+
 
 # TODO: it would be a lot, lot better to use these kinds of functions
 # where we don't use a massive jacobian and we don't allocate anything
@@ -115,14 +166,15 @@ actually_good_derivative(::typeof(.-), ∂out, r, ∂r, l, ∂l) = begin
 end
 
 actually_good_derivative(::typeof(.*), ∂out, r, ∂r, l, ∂l) = begin
-    sum!(∂l, r .* ∂out)
-    sum!(∂r, l .* ∂out)
+    sum!(∂l, ∂out ./ r)
+    map!(x -> is_valid(x) ? x : zero(x), ∂l, ∂l)
+    sum!(∂r, ∂out ./ l)
+    map!(x -> is_valid(x) ? x : zero(x), ∂r, ∂r)
 end
-
 
 function eval_diff_frame_node(frame::OptimizeFrame{T}, node::Node{T}, derivative::AT) where {T,AT}
     if node.degree == 0
-        frame.index[node].derivative_l .= derivative
+        sum!(frame.index[node].derivative_l, derivative)
     elseif node.degree == 1
         op = frame.operators.unaops[node.op]
         inner_val = frame.index[node.l].value
@@ -162,9 +214,9 @@ function set_derivatives(frame::OptimizeFrame{T}, node::Node{T}, idx, gradient_v
     return idx
 end
 
-function eval_diff_frame(frame::OptimizeFrame{T,BT,LFT}, gradient_vector=frame.derivatives) where {T,BT,LFT}
+function eval_diff_frame(frame::OptimizeFrame{T,BT,LFT}, gradient_vector) where {T,BT,LFT}
     if frame.computed & 0b100 != 0
-        return frame.derivatives
+        return gradient_vector
     end
     eval_frame(frame)
     frame.root_gradient = gradient(
@@ -195,16 +247,17 @@ function optimize_constants!(tree::Node{AT}, operators::OperatorEnum, cX::Abstra
     @show AT
     return
     if AT <: Array{BT,N}
-        allocator = (sizes) -> Array{BT,length(sizes)+1}(undef, datasets, sizes...)
+        allocator = (sizes) -> Array{BT,length(sizes)}(undef, sizes...)
     elseif AT <: CUDA.CuArray{BT,N}
-        allocator = (sizes) -> CuArray{BT,length(sizes)+1}(undef, datasets, sizes...)
+        allocator = (sizes) -> CuArray{BT,length(sizes)}(undef, sizes...)
     end
     shapes = ntuple(i -> i > length(cX) ? size(y) : size(cX[i]), length(cX)+1)
     shapes_d, ok = shape_inference(tree, operators, shapes; throw_errors = false)
     !ok && error("Wrong shape!!!")
     shape_upgrade(shapes_d)
     frame = make_frame(tree, cX, shapes_d, operators, allocator, loss_function)
-    optimize((new_constants) -> begin
+    
+    Optim.optimize((new_constants) -> begin
         if new_constants != frame.constants
             frame.constants .= new_constants
             frame.computed = 0
@@ -217,5 +270,7 @@ function optimize_constants!(tree::Node{AT}, operators::OperatorEnum, cX::Abstra
             frame.computed = 0
         end
         return eval_diff_frame(frame, gradient_vector)
-    end; inplace=true)
+    end,
+    frame.constants
+    ; inplace=true)
 end

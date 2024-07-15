@@ -467,6 +467,24 @@ end
 
 # Implementations of append_constraints!
 
+append_constraints_broadcasting(cs::Vector{Constraint{M,C}}, (p, l, r), ::Val{N}) where {M,C,N} = begin
+    for i in 1:N
+        @push_constraint(cs, (p + i, l + i, r + i), (n, n, n), (n, 1, n), (n, n, 1))
+    end
+end
+
+append_constraints_binary_all_equal(cs::Vector{Constraint{M,C}}, (p,l,r), ::Val{N}) where {N,M,C} = begin
+    for i in 1:N
+        @push_constraint(cs, (p + i, l + i, r + i), (n, n, n))
+    end
+end
+
+append_constraints_unary_all_equal(cs::Vector{Constraint{M,C}}, (p,l), ::Val{N}) where {N,M,C} = begin
+    for i in 1:N
+        @push_constraint(cs, (p + i, l + i), (n, n))
+    end
+end
+
 function append_constraints!(
     ::typeof(.+), cs2::Vector{Constraint{M,C}}, N::Int64, indices::Tuple{Int64,Int64,Int64}
 ) where {M,C}
@@ -525,7 +543,7 @@ function inside_substitution(
     c::Constraint{M,C},
     cs::Vector{Constraint{M,C}},
     nodes::Vector{Node{AT}},
-    solved::Dict{Node{AT},NTuple{N,Int64}},
+    solved::Dict{Node{AT},NTuple{N,Int64}}
 )::Bool where {M,C,AT,N}
     effM, effC = effective_M(c), effective_C(c)
     !(effM == 1 && effC == 1) && return false
