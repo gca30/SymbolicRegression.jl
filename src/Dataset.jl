@@ -82,6 +82,62 @@ mutable struct Dataset{
     @constfield y_sym_units::YUS
 end
 
+
+"""
+    TensorDataset{T<:DATA_TYPE,L<:LOSS_TYPE,N}
+
+# Fields
+
+- `X::AbstarctVector{<:AbstractArray{T, N+1}}`: The input features, a vector of length `nfeatures`, 
+    of Arrays with first dimension `ndatapoints`.
+- `y::AbstractArray{T, N+1}`: The desired output values, with shape `(ndatapoints, ...)`.
+- `ndatapoints::Int`: The number of samples.
+- `nfeatures::Int`: The number of features.
+- `weighted::Bool`: Whether the dataset is non-uniformly weighted.
+- `weights::Union{AbstractVector{T},Nothing}`: If the dataset is weighted,
+    these specify the per-sample weight (with shape `(ndatapoints,)`).
+- `extra::NamedTuple`: Extra information to pass to a custom evaluation
+    function. Since this is an arbitrary named tuple, you could pass
+    any sort of dataset you wish to here.
+- `avg_y`: The average value of `y` (weighted, if `weights` are passed).
+- `use_baseline`: Whether to use a baseline loss. This will be set to `false`
+    if the baseline loss is calculated to be `Inf`.
+- `baseline_loss`: The loss of a constant function which predicts the average
+    value of `y`. This is loss-dependent and should be updated with
+    `update_baseline_loss!`.
+- `variable_names::Array{String,1}`: The names of the features,
+    with shape `(nfeatures,)`.
+- `display_variable_names::Array{String,1}`: A version of `variable_names`
+    but for printing to the terminal (e.g., with unicode versions).
+- `y_variable_name::String`: The name of the output variable.
+"""
+mutable struct TensorDataset{
+    T<:DATA_TYPE,
+    L<:LOSS_TYPE,
+    N, # number of max dimensions
+    NP1, # number of max dimensions + 1
+    AT<:AbstractArray{T, N},
+    ATP1<:AbstractArray{T, NP1},
+    AX<:AbstractVector{ATP1},
+    AY<:Union{ATP1,Nothing},
+    AW<:Union{AbstractVector{T},Nothing},
+    NT<:NamedTuple
+}
+    @constfield X::AX
+    @constfield y::AY
+    @constfield ndatapoints::Int
+    @constfield nfeatures::Int
+    @constfield weighted::Bool
+    @constfield weights::AW
+    @constfield extra::NT
+    @constfield avg_y::Union{AT,Nothing}
+    use_baseline::Bool
+    baseline_loss::L
+    @constfield variable_names::Array{String,1}
+    @constfield display_variable_names::Array{String,1}
+    @constfield y_variable_name::String
+end
+
 """
     Dataset(X::AbstractMatrix{T},
             y::Union{AbstractVector{T},Nothing}=nothing,
@@ -245,6 +301,105 @@ function Dataset(
         weights = Base.Fix1(convert, T).(weights)
     end
     return Dataset(X, y; weights=weights, kws...)
+end
+
+function TensorDataset(
+    X::Union{AbstractVector{<:AbstractArray{T,NP1}}, AbstractArray{T,NP2}},
+    y::Union{AbstractArray{T,NP1}, Nothing} = nothing,
+    loss_type::Type{L}=Nothing;
+    weights::Union{AbstractVector{T},Nothing}=nothing,
+    variable_names::Union{Array{String,1},Nothing}=nothing,
+    display_variable_names=variable_names,
+    y_variable_name::Union{String,Nothing}=nothing,
+    extra::NamedTuple=NamedTuple(),
+    kws...,
+) where {T<:DATA_TYPE,L,NP1,NP2}
+    N = NP1-1
+    if N < 1 || NP1 != N+1 || NP2 != N+2
+        error("Internal error (dimension count mismatch) (should be unreachable)")
+    end
+    Base.require_one_based_indexing(X)
+    y !== nothing && Base.require_one_based_indexing(y)
+    if typeof(X) <: AbstractArray{T,NP2}
+        X = [copy(selectdim(X, FEATURE_DIM, i)) for i in axes(X, FEATURE_DIM)]
+    end
+    nfeatures = length(X)
+    if nfeatures == 0
+        error("Cannot have 0 features")
+    end
+    ndatapoints = size(X[1], 1)
+    for i in eachindex(X)
+        if size(X[i], 1) != ndatapoints
+            error("Feature $(i) has incorrect number of samples/datapoints")
+        end
+    end
+    if y !== nothing && size(y,1) != ndatapoints
+        error("Output has incorrect number of samples/datapoints")
+    end
+
+    weighted = weights !== nothing
+    variable_names = if variable_names === nothing
+        ["x$(i)" for i in 1:nfeatures]
+    else
+        variable_names
+    end
+    display_variable_names = if display_variable_names === nothing
+        ["x$(subscriptify(i))" for i in 1:nfeatures]
+    else
+        display_variable_names
+    end
+
+    y_variable_name = if y_variable_name === nothing
+        ("y" ∉ variable_names) ? "y" : "target"
+    else
+        y_variable_name
+    end
+
+    avg_y = if y === nothing
+        nothing
+    else
+        if weighted
+            weights_reshaped = reshape(weights, ntuple(i -> i == 1 ? ndatapoints : 1, Val(NP1)))
+            reshape(sum(y .* weights_reshaped; dims=1), size(y)[2:end]) / sum(weights)
+        else
+            reshape(sum(y; dims=1), size(y)[2:end]) / convert(T, ndatapoints)
+        end
+    end
+
+    out_loss_type = if L === Nothing
+        T <: Complex ? real(T) : T
+    else
+        L
+    end
+
+    use_baseline = true
+    baseline = one(out_loss_type)
+
+    # a scuffed way to reduce the dimension of an array
+    ATN = typeof(copy(X[1][ntuple(i -> i == 1 ? (1) : (2:1), Val(NP1))...]))
+
+    return TensorDataset{
+        T, out_loss_type,
+        N, N+1,
+        ATN, typeof(X[1]),
+        typeof(X), typeof(y),
+        typeof(weights),
+        typeof(extra),
+    }(
+        X,
+        y,
+        ndatapoints,
+        nfeatures,
+        weighted,
+        weights,
+        extra,
+        avg_y,
+        use_baseline,
+        baseline,
+        variable_names,
+        display_variable_names,
+        y_variable_name
+    )
 end
 
 function error_on_mismatched_size(_, ::Nothing)
