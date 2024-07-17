@@ -183,7 +183,8 @@ using .CoreModule:
     DATA_TYPE,
     LOSS_TYPE,
     RecordType,
-    Dataset,
+    # Dataset,
+    AbstractDataset,
     Options,
     MutationWeights,
     plus,
@@ -276,11 +277,15 @@ One can turn off parallelism with `numprocs=0`,
 which is useful for debugging and profiling.
 
 # Arguments
-- `X::AbstractMatrix{T}`:  The input dataset to predict `y` from.
-    The first dimension is features, the second dimension is rows.
-- `y::Union{AbstractMatrix{T}, AbstractVector{T}}`: The values to predict. The first dimension
-    is the output feature to predict with each equation, and the
-    second dimension is rows.
+- `X::Union{AbstractMatrix{T}, AbstractVector{<:AbstractArray{T,NP1}}}`:  The input dataset to predict `y` from.
+    For the scalar case, the first dimension is features, the second dimension is rows.
+    For the tensor case, the length of the vector is the number of features. Each tensor has as the first 
+        dimension the number of samples.
+- `y::Union{AbstractMatrix{T}, AbstractVector{<:AbstractArray{T,NP1}}}`: The values to predict. 
+    For the scalar case, the first dimension is the output feature to predict with each equation, and the
+        second dimension is rows.
+    For the tensor case, the length of the vector is the number of output features. Each tensor has as the
+        first dimension the number of samples. 
 - `niterations::Int=10`: The number of iterations to perform the search.
     More iterations will improve the results.
 - `weights::Union{AbstractMatrix{T}, AbstractVector{T}, Nothing}=nothing`: Optionally
@@ -384,7 +389,7 @@ function equation_search(
     # Deprecated:
     multithreaded=nothing,
     varMap=nothing,
-) where {T<:DATA_TYPE,L,DIM_OUT}
+) where {T<:DATA_TYPE,L,DIM_OUT,NP1}
     if multithreaded !== nothing
         error(
             "`multithreaded` is deprecated. Use the `parallelism` argument instead. " *
@@ -428,25 +433,135 @@ function equation_search(
     )
 end
 
+# Tensor version in final feature-vector form
 function equation_search(
-    X::AbstractMatrix{T1}, y::AbstractMatrix{T2}; kw...
-) where {T1<:DATA_TYPE,T2<:DATA_TYPE}
-    U = promote_type(T1, T2)
+    X::AbstractVector{<:AbstractArray{T,NP1}},
+    y::AbstractVector{<:AbstractArray{T,NP1}};
+    niterations::Int=10,
+    weights::Union{AbstractMatrix{T},AbstractVector{T},Nothing}=nothing,
+    options::Options=Options(; generic_operators=!(T <: Number)),
+    variable_names::Union{AbstractVector{String},Nothing}=nothing,
+    display_variable_names::Union{AbstractVector{String},Nothing}=variable_names,
+    y_variable_names::Union{String,AbstractVector{String},Nothing}=nothing,
+    parallelism=:multithreading,
+    numprocs::Union{Int,Nothing}=nothing,
+    procs::Union{Vector{Int},Nothing}=nothing,
+    addprocs_function::Union{Function,Nothing}=nothing,
+    heap_size_hint_in_bytes::Union{Integer,Nothing}=nothing,
+    runtests::Bool=true,
+    saved_state=nothing,
+    return_state::Union{Bool,Nothing,Val}=nothing,
+    loss_type::Type{L}=Nothing,
+    verbosity::Union{Integer,Nothing}=nothing,
+    progress::Union{Bool,Nothing}=nothing,
+    v_dim_out::Val{DIM_OUT}=Val(nothing)
+) where {T<:DATA_TYPE,L,DIM_OUT,NP1}
+    
+    if weights !== nothing
+        @assert length(weights) == length(y)*size(y[1], 1)
+        weights = reshape(weights, (length(y), size(y[1], 1)))
+    end
+    
+    datasets = construct_tensor_datasets(
+        X,
+        y,
+        weights,
+        variable_names,
+        display_variable_names,
+        y_variable_names,
+        L
+    )
+
     return equation_search(
-        convert(AbstractMatrix{U}, X), convert(AbstractMatrix{U}, y); kw...
+        datasets;
+        niterations=niterations,
+        options=options,
+        parallelism=parallelism,
+        numprocs=numprocs,
+        procs=procs,
+        addprocs_function=addprocs_function,
+        heap_size_hint_in_bytes=heap_size_hint_in_bytes,
+        runtests=runtests,
+        saved_state=saved_state,
+        return_state=return_state,
+        verbosity=verbosity,
+        progress=progress,
+        v_dim_out=Val(DIM_OUT),
     )
 end
 
+# Both version, differing types
 function equation_search(
-    X::AbstractMatrix{T1}, y::AbstractVector{T2}; kw...
-) where {T1<:DATA_TYPE,T2<:DATA_TYPE}
-    return equation_search(X, reshape(y, (1, size(y, 1))); kw..., v_dim_out=Val(1))
+    X::Union{AbstractArray{T1,N1}, AbstractVector{<:AbstractArray{T1}}}, 
+    y::Union{AbstractArray{T2,N2}, AbstractVector{<:AbstractArray{T2}}}; 
+    kw...
+) where {T1<:DATA_TYPE,T2<:DATA_TYPE,N1,N2}
+    U = promote_type(T1, T2)
+    conv = ar -> map(a -> convert(U, a), ar)
+    return equation_search(
+        U == T1 ? X : (X isa AbstractArray{T1} ? conv(X) : map(conv, X)), 
+        U == T2 ? y : (y isa AbstractArray{T2} ? conv(y) : map(conv, y)); 
+        kw...
+    )
 end
 
-function equation_search(dataset::Dataset; kws...)
+# Tensor version, differing dimension count across features
+function equation_search(
+    X::AbstractVector{<:AbstractArray{T}},
+    y::AbstractVector{<:AbstractArray{T}};
+    kw...
+) where {T<:DATA_TYPE}
+    N = max(maximum(ndims, X), maximum(ndims, y))
+    X = map(x -> reshape(x, ntuple(i -> size(x, i), N)), X)
+    y = map(x -> reshape(x, ntuple(i -> size(x, i), N)), y)
+    return equation_search(X, y; kw...)
+end
+
+# Scalar and tensor versions with consistent types and dimensions
+function equation_search(
+    X::Union{AbstractArray{T,N1}, AbstractVector{<:AbstractArray{T,N1}}}, 
+    y::Union{AbstractArray{T,N2}, AbstractVector{<:AbstractArray{T,N2}}}; kw...
+) where {N1,N2,T<:DATA_TYPE}
+    @assert length(X) > 0
+    @assert length(y) > 0
+    flatX = X isa AbstractArray{T,N1}
+    flatY = y isa AbstractArray{T,N2}
+    if flatX && flatY
+        if N1 == 1 && N2 == 1
+            # scalars, one input feature, one output feature
+            return equation_search(reshape(X, (1, length(X))), reshape(y, (1, length(y))); kw...)
+        elseif N1 == 2 && N2 == 1
+            # scalars, included input features, one output feature
+            return equation_search(X, reshape(y, (1, length(y))); kw...)
+        elseif N1 == 1 && N2 == 2
+            # scalars, one input feature, included output features
+            return equation_search(reshape(X, (1, length(X))), y; kw...)
+        end
+    end
+    peel_first_dim = ar -> [copy(selectdim(ar, 1, i)) for i in eachaxis(ar, 1)]
+    if flatX
+        X = peel_first_dim(X)
+    end
+    N = size(X[1],1)-1
+    if flatY
+        if N2 == N+1
+            y = [y]
+        elseif N2 == N+2
+            y = peel_first_dim(y)
+        end
+    end
+    @assert ndims(y[1]) == ndims(X[1])
+    @assert all(x -> size(x, 1) == size(X[1], 1), X)
+    @assert all(x -> size(x, 1) == size(X[1], 1), y)
+    return equation_search(X, y; kw...)
+end
+
+# Dataset version, but with one dataset
+function equation_search(dataset::AbstractDataset; kws...)
     return equation_search([dataset]; kws..., v_dim_out=Val(1))
 end
 
+# Datset version, vector
 function equation_search(
     datasets::Vector{D};
     niterations::Int=10,
@@ -462,7 +577,7 @@ function equation_search(
     verbosity::Union{Int,Nothing}=nothing,
     progress::Union{Bool,Nothing}=nothing,
     v_dim_out::Val{DIM_OUT}=Val(nothing),
-) where {DIM_OUT,T<:DATA_TYPE,L<:LOSS_TYPE,D<:Dataset{T,L}}
+) where {DIM_OUT,T<:DATA_TYPE,L<:LOSS_TYPE,N,D<:AbstractDataset{T,L,N}}
     concurrency = if parallelism in (:multithreading, "multithreading")
         :multithreading
     elseif parallelism in (:multiprocessing, "multiprocessing")
@@ -592,7 +707,7 @@ end
 
 @stable default_mode = "disable" @noinline function _equation_search(
     datasets::Vector{D}, ropt::RuntimeOptions, options::Options, saved_state
-) where {D<:Dataset}
+) where {D<:AbstractDataset}
     _validate_options(datasets, ropt, options)
     state = _create_workers(datasets, ropt, options)
     _initialize_search!(state, datasets, ropt, options, saved_state)
@@ -604,7 +719,7 @@ end
 
 function _validate_options(
     datasets::Vector{D}, ropt::RuntimeOptions, options::Options
-) where {T,L,D<:Dataset{T,L}}
+) where {T,L,D<:AbstractDataset{T,L}}
     example_dataset = first(datasets)
     nout = length(datasets)
     @assert nout >= 1
@@ -634,7 +749,7 @@ function _validate_options(
 end
 @stable default_mode = "disable" function _create_workers(
     datasets::Vector{D}, ropt::RuntimeOptions, options::Options
-) where {T,L,D<:Dataset{T,L}}
+) where {T,L,D<:AbstractDataset{T,L}}
     stdin_reader = watch_stream(stdin)
 
     record = RecordType()
@@ -1088,7 +1203,7 @@ end
 
 @stable default_mode = "disable" function _dispatch_s_r_cycle(
     in_pop::Population{T,L,N},
-    dataset::Dataset,
+    dataset::AbstractDataset,
     options::Options;
     pop::Int,
     out::Int,

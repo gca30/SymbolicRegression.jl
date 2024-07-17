@@ -31,7 +31,7 @@ import .MutationFunctionsModule: gen_random_tree, gen_random_tree_fixed_size
     equation_search(X, y; kw...)
 )
 
-@deprecate(EquationSearch(dataset::Dataset; kws...), equation_search(dataset; kws...),)
+@deprecate(EquationSearch(dataset::AbstractDataset; kws...), equation_search(dataset; kws...),)
 
 @deprecate(
     EquationSearch(
@@ -82,7 +82,7 @@ import .MutationFunctionsModule: gen_random_tree, gen_random_tree_fixed_size
         addprocs_function::Union{Function,Nothing}=nothing,
         runtests::Bool=true,
         saved_state=nothing,
-    ) where {T<:DATA_TYPE,L<:LOSS_TYPE,D<:Dataset{T,L}},
+    ) where {T<:DATA_TYPE,L<:LOSS_TYPE,D<:AbstractDataset{T,L}},
     equation_search(
         datasets;
         niterations,

@@ -510,6 +510,43 @@ function construct_datasets(
     ]
 end
 
+function construct_tensor_datasets(
+    X,
+    y,
+    weights,
+    variable_names,
+    display_variable_names,
+    y_variable_names,
+    ::Type{L},
+) where {L}
+    nout = size(y, 1)
+    return [
+        TensorDataset(
+            X,
+            y[j],
+            L;
+            weights=(weights === nothing ? weights : weights[j, :]),
+            variable_names=variable_names,
+            display_variable_names=display_variable_names,
+            y_variable_name=if y_variable_names === nothing
+                if nout > 1
+                    "y$(subscriptify(j))"
+                else
+                    if variable_names === nothing || "y" ∉ variable_names
+                        "y"
+                    else
+                        "target"
+                    end
+                end
+            elseif isa(y_variable_names, AbstractVector)
+                y_variable_names[j]
+            else
+                y_variable_names
+            end,
+        ) for j in 1:nout
+    ]
+end
+
 function update_hall_of_fame!(
     hall_of_fame::HallOfFame, members::Vector{PM}, options::Options
 ) where {PM<:PopMember}

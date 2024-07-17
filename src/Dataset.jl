@@ -16,6 +16,8 @@ using ...InterfaceDynamicQuantitiesModule: get_si_units, get_sym_units
 
 import ...deprecate_varmap
 
+abstract type AbstractDataset{T<:DATA_TYPE,L<:LOSS_TYPE,N} end
+
 """
     Dataset{T<:DATA_TYPE,L<:LOSS_TYPE}
 
@@ -62,7 +64,7 @@ mutable struct Dataset{
     YU<:Union{Quantity,Nothing},
     XUS<:Union{AbstractVector{<:Quantity},Nothing},
     YUS<:Union{Quantity,Nothing},
-}
+} <: AbstractDataset{T,L,0}
     @constfield X::AX
     @constfield y::AY
     @constfield n::Int
@@ -122,7 +124,7 @@ mutable struct TensorDataset{
     AY<:Union{ATP1,Nothing},
     AW<:Union{AbstractVector{T},Nothing},
     NT<:NamedTuple
-}
+} <: AbstractDataset{T,L,N}
     @constfield X::AX
     @constfield y::AY
     @constfield ndatapoints::Int
@@ -220,7 +222,7 @@ function Dataset(
     end
 
     out_loss_type = if L === Nothing
-        get_base_type(T) # TC3
+        T <: Complex ? real(T) : T
     else
         L
     end
@@ -304,7 +306,7 @@ function Dataset(
 end
 
 function TensorDataset(
-    X::Union{AbstractVector{<:AbstractArray{T,NP1}}, AbstractArray{T,NP2}},
+    X::AbstractVector{<:AbstractArray{T,NP1}},
     y::Union{AbstractArray{T,NP1}, Nothing} = nothing,
     loss_type::Type{L}=Nothing;
     weights::Union{AbstractVector{T},Nothing}=nothing,
@@ -313,16 +315,10 @@ function TensorDataset(
     y_variable_name::Union{String,Nothing}=nothing,
     extra::NamedTuple=NamedTuple(),
     kws...,
-) where {T<:DATA_TYPE,L,NP1,NP2}
+) where {T<:DATA_TYPE,L,NP1}
     N = NP1-1
-    if N < 1 || NP1 != N+1 || NP2 != N+2
-        error("Internal error (dimension count mismatch) (should be unreachable)")
-    end
     Base.require_one_based_indexing(X)
     y !== nothing && Base.require_one_based_indexing(y)
-    if typeof(X) <: AbstractArray{T,NP2}
-        X = [copy(selectdim(X, FEATURE_DIM, i)) for i in axes(X, FEATURE_DIM)]
-    end
     nfeatures = length(X)
     if nfeatures == 0
         error("Cannot have 0 features")

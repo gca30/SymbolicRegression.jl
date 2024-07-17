@@ -10,7 +10,7 @@ include("Options.jl")
 
 using .ProgramConstantsModule:
     MAX_DEGREE, BATCH_DIM, FEATURE_DIM, RecordType, DATA_TYPE, LOSS_TYPE
-using .DatasetModule: Dataset
+using .DatasetModule: Dataset, TensorDataset, AbstractDataset
 using .MutationWeightsModule: MutationWeights, sample_mutation
 using .OptionsStructModule: Options, ComplexityMapping
 using .OptionsModule: Options
