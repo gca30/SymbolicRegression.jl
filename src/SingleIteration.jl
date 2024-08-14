@@ -1,7 +1,7 @@
 module SingleIterationModule
 
 using DynamicExpressions:
-    AbstractExpressionNode,
+    AbstractScalarExprNode,
     Node,
     constructorof,
     string_tree,
@@ -32,7 +32,7 @@ function s_r_cycle(
     record::RecordType,
 )::Tuple{
     P,HallOfFame{T,L,N},Float64
-} where {T,L,D<:Dataset{T,L},N<:AbstractExpressionNode{T},P<:Population{T,L,N}}
+} where {T,L,D<:Dataset{T,L},N<:AbstractScalarExprNode{T},P<:Population{T,L,N}}
     max_temp = 1.0
     min_temp = 0.0
     if !options.annealing

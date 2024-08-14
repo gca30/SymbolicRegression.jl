@@ -2,7 +2,7 @@ module MutationFunctionsModule
 
 using Random: default_rng, AbstractRNG
 using DynamicExpressions:
-    AbstractExpressionNode,
+    AbstractScalarExprNode,
     AbstractNode,
     NodeSampler,
     constructorof,
@@ -43,7 +43,7 @@ end
 
 """Randomly convert an operator into another one (binary->binary; unary->unary)"""
 function mutate_operator(
-    tree::AbstractExpressionNode{T}, options::Options, rng::AbstractRNG=default_rng()
+    tree::AbstractScalarExprNode{T}, options::Options, rng::AbstractRNG=default_rng()
 ) where {T}
     if !(has_operators(tree))
         return tree
@@ -59,7 +59,7 @@ end
 
 """Randomly perturb a constant"""
 function mutate_constant(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     temperature,
     options::Options,
     rng::AbstractRNG=default_rng(),
@@ -89,7 +89,7 @@ end
 
 """Add a random unary/binary operation to the end of a tree"""
 function append_random_op(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     options::Options,
     nfeatures::Int,
     rng::AbstractRNG=default_rng();
@@ -122,7 +122,7 @@ end
 
 """Insert random node"""
 function insert_random_op(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     options::Options,
     nfeatures::Int,
     rng::AbstractRNG=default_rng(),
@@ -144,7 +144,7 @@ end
 
 """Add random node to the top of a tree"""
 function prepend_random_op(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     options::Options,
     nfeatures::Int,
     rng::AbstractRNG=default_rng(),
@@ -166,7 +166,7 @@ end
 
 function make_random_leaf(
     nfeatures::Int, ::Type{T}, ::Type{N}, rng::AbstractRNG=default_rng()
-) where {T<:DATA_TYPE,N<:AbstractExpressionNode}
+) where {T<:DATA_TYPE,N<:AbstractScalarExprNode}
     # println("make_random_leaf")
     if rand(rng, Bool)
         return constructorof(N)(; val=randn(rng, T))
@@ -190,7 +190,7 @@ end
 
 """Select a random node, and splice it out of the tree."""
 function delete_random_op!(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     options::Options,
     nfeatures::Int,
     rng::AbstractRNG=default_rng(),
@@ -272,8 +272,8 @@ end
 
 """Crossover between two expressions"""
 function crossover_trees(
-    tree1::AbstractExpressionNode{T},
-    tree2::AbstractExpressionNode{T},
+    tree1::AbstractScalarExprNode{T},
+    tree2::AbstractScalarExprNode{T},
     rng::AbstractRNG=default_rng(),
 ) where {T}
     tree1 = copy_node(tree1)

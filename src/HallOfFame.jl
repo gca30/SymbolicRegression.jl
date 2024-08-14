@@ -1,6 +1,6 @@
 module HallOfFameModule
 
-using DynamicExpressions: AbstractExpressionNode, Node, constructorof, string_tree
+using DynamicExpressions: AbstractScalarExprNode, Node, constructorof, string_tree
 using DynamicExpressions.EquationModule: with_type_parameters
 using ..UtilsModule: split_string
 using ..CoreModule: MAX_DEGREE, Options, Dataset, DATA_TYPE, LOSS_TYPE, relu
@@ -23,13 +23,13 @@ have been set, you can run `.members[exists]`.
     These are ordered by complexity, with `.members[1]` the member with complexity 1.
 - `exists::Array{Bool,1}`: Whether the member at the given complexity has been set.
 """
-struct HallOfFame{T<:DATA_TYPE,L<:LOSS_TYPE,N<:AbstractExpressionNode{T}}
+struct HallOfFame{T<:DATA_TYPE,L<:LOSS_TYPE,N<:AbstractScalarExprNode{T}}
     members::Array{PopMember{T,L,N},1}
     exists::Array{Bool,1} #Whether it has been set
 end
 
 """
-    HallOfFame(options::Options, ::Type{T}, ::Type{L}) where {T<:DATA_TYPE,L<:LOSS_TYPE,N<:AbstractExpressionNode}
+    HallOfFame(options::Options, ::Type{T}, ::Type{L}) where {T<:DATA_TYPE,L<:LOSS_TYPE,N<:AbstractScalarExprNode}
 
 Create empty HallOfFame. The HallOfFame stores a list
 of `PopMember` objects in `.members`, which is enumerated

@@ -3,7 +3,7 @@ include("test_params.jl")
 
 def = quote
     function my_custom_loss(
-        tree::$(AbstractExpressionNode){T}, dataset::$(Dataset){T}, options::$(Options)
+        tree::$(AbstractScalarExprNode){T}, dataset::$(Dataset){T}, options::$(Options)
     ) where {T}
         # We multiply the tree by 2.0:
         tree = $(Node)(1, tree, $(Node)(T; val=2.0))

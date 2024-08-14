@@ -2,14 +2,14 @@ module PopMemberModule
 
 using DispatchDoctor: @unstable
 
-using DynamicExpressions: AbstractExpressionNode, copy_node, count_nodes
+using DynamicExpressions: AbstractScalarExprNode, copy_node, count_nodes
 using ..CoreModule: Options, Dataset, DATA_TYPE, LOSS_TYPE
 import ..ComplexityModule: compute_complexity
 using ..UtilsModule: get_birth_order
 using ..LossFunctionsModule: score_func
 
 # Define a member of population by equation, score, and age
-mutable struct PopMember{T<:DATA_TYPE,L<:LOSS_TYPE,N<:AbstractExpressionNode{T}}
+mutable struct PopMember{T<:DATA_TYPE,L<:LOSS_TYPE,N<:AbstractScalarExprNode{T}}
     tree::N
     score::L  # Inludes complexity penalty, normalization
     loss::L  # Raw loss
@@ -37,7 +37,7 @@ end
 generate_reference() = abs(rand(Int))
 
 """
-    PopMember(t::AbstractExpressionNode{T}, score::L, loss::L)
+    PopMember(t::AbstractScalarExprNode{T}, score::L, loss::L)
 
 Create a population member with a birth date at the current time.
 The type of the `Node` may be different from the type of the score
@@ -45,12 +45,12 @@ and loss.
 
 # Arguments
 
-- `t::AbstractExpressionNode{T}`: The tree for the population member.
+- `t::AbstractScalarExprNode{T}`: The tree for the population member.
 - `score::L`: The score (normalized to a baseline, and offset by a complexity penalty)
 - `loss::L`: The raw loss to assign.
 """
 function PopMember(
-    t::AbstractExpressionNode{T},
+    t::AbstractScalarExprNode{T},
     score::L,
     loss::L,
     options::Options,
@@ -76,7 +76,7 @@ end
 
 """
     PopMember(dataset::Dataset{T,L},
-              t::AbstractExpressionNode{T}, options::Options)
+              t::AbstractScalarExprNode{T}, options::Options)
 
 Create a population member with a birth date at the current time.
 Automatically compute the score for this tree.
@@ -84,12 +84,12 @@ Automatically compute the score for this tree.
 # Arguments
 
 - `dataset::Dataset{T,L}`: The dataset to evaluate the tree on.
-- `t::AbstractExpressionNode{T}`: The tree for the population member.
+- `t::AbstractScalarExprNode{T}`: The tree for the population member.
 - `options::Options`: What options to use.
 """
 function PopMember(
     dataset::Dataset{T,L},
-    t::AbstractExpressionNode{T},
+    t::AbstractScalarExprNode{T},
     options::Options,
     complexity::Union{Int,Nothing}=nothing;
     ref::Int=-1,

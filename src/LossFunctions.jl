@@ -2,7 +2,7 @@ module LossFunctionsModule
 
 using Random: MersenneTwister
 using StatsBase: StatsBase
-using DynamicExpressions: AbstractExpressionNode, Node, constructorof
+using DynamicExpressions: AbstractScalarExprNode, Node, constructorof
 using LossFunctions: LossFunctions
 using LossFunctions: SupervisedLoss
 using ..InterfaceDynamicExpressionsModule: eval_tree_array
@@ -43,7 +43,7 @@ end
 
 # Evaluate the loss of a particular expression on the input dataset.
 function _eval_loss(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     dataset::Dataset{T,L},
     options::Options,
     regularization::Bool,
@@ -76,7 +76,7 @@ end
 
 # This evaluates function F:
 function evaluator(
-    f::F, tree::AbstractExpressionNode{T}, dataset::Dataset{T,L}, options::Options, idx
+    f::F, tree::AbstractScalarExprNode{T}, dataset::Dataset{T,L}, options::Options, idx
 )::L where {T<:DATA_TYPE,L<:LOSS_TYPE,F}
     if hasmethod(f, typeof((tree, dataset, options, idx)))
         # If user defines method that accepts batching indices:
@@ -95,7 +95,7 @@ end
 
 # Evaluate the loss of a particular expression on the input dataset.
 function eval_loss(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     dataset::Dataset{T,L},
     options::Options;
     regularization::Bool=true,
@@ -112,7 +112,7 @@ function eval_loss(
 end
 
 function eval_loss_batched(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     dataset::Dataset{T,L},
     options::Options;
     regularization::Bool=true,
@@ -127,7 +127,7 @@ function batch_sample(dataset, options)
 end
 
 # Just so we can pass either PopMember or Node here:
-get_tree(t::AbstractExpressionNode) = t
+get_tree(t::AbstractScalarExprNode) = t
 get_tree(m) = m.tree
 # Beware: this is a circular dependency situation...
 # PopMember is using losses, but then we also want
@@ -218,7 +218,7 @@ function update_baseline_loss!(
 end
 
 function dimensional_regularization(
-    tree::AbstractExpressionNode{T}, dataset::Dataset{T,L}, options::Options
+    tree::AbstractScalarExprNode{T}, dataset::Dataset{T,L}, options::Options
 ) where {T<:DATA_TYPE,L<:LOSS_TYPE}
     if !violates_dimensional_constraints(tree, dataset, options)
         return zero(L)

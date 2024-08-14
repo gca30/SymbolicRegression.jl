@@ -2,7 +2,7 @@ module OptionsStructModule
 
 using Optim: Optim
 using DynamicExpressions:
-    AbstractOperatorEnum, AbstractExpressionNode, OperatorEnum, GenericOperatorEnum
+    AbstractOperatorEnum, AbstractScalarExprNode, OperatorEnum, GenericOperatorEnum
 using LossFunctions: SupervisedLoss
 
 import ..MutationWeightsModule: MutationWeights
@@ -125,7 +125,7 @@ end
 struct Options{
     CM<:ComplexityMapping,
     OP<:AbstractOperatorEnum,
-    N<:AbstractExpressionNode,
+    N<:AbstractScalarExprNode,
     _turbo,
     _bumper,
     _return_state,

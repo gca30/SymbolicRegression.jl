@@ -1,6 +1,6 @@
 module DimensionalAnalysisModule
 
-using DynamicExpressions: AbstractExpressionNode
+using DynamicExpressions: AbstractScalarExprNode
 using DynamicQuantities: Quantity, DimensionError, AbstractQuantity, uparse, constructorof
 
 using ..CoreModule: Options, Dataset
@@ -118,7 +118,7 @@ end
 @inline function deg0_eval(
     x::AbstractVector{T},
     x_units::Vector{Q},
-    t::AbstractExpressionNode{T},
+    t::AbstractScalarExprNode{T},
     allow_wildcards::Bool,
 ) where {T,R,Q<:AbstractQuantity{T,R}}
     if t.constant
@@ -155,7 +155,7 @@ end
 end
 
 function violates_dimensional_constraints_dispatch(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     x_units::Vector{Q},
     x::AbstractVector{T},
     operators,
@@ -180,12 +180,12 @@ function violates_dimensional_constraints_dispatch(
 end
 
 """
-    violates_dimensional_constraints(tree::AbstractExpressionNode, dataset::Dataset, options::Options)
+    violates_dimensional_constraints(tree::AbstractScalarExprNode, dataset::Dataset, options::Options)
 
 Checks whether an expression violates dimensional constraints.
 """
 function violates_dimensional_constraints(
-    tree::AbstractExpressionNode, dataset::Dataset, options::Options
+    tree::AbstractScalarExprNode, dataset::Dataset, options::Options
 )
     X = dataset.X
     return violates_dimensional_constraints(
@@ -193,7 +193,7 @@ function violates_dimensional_constraints(
     )
 end
 function violates_dimensional_constraints(
-    tree::AbstractExpressionNode{T},
+    tree::AbstractScalarExprNode{T},
     X_units::AbstractVector{<:Quantity},
     y_units::Union{Quantity,Nothing},
     x::AbstractVector{T},
@@ -215,12 +215,12 @@ function violates_dimensional_constraints(
     return violates
 end
 function violates_dimensional_constraints(
-    ::AbstractExpressionNode{T}, ::Nothing, ::Quantity, ::AbstractVector{T}, ::Options
+    ::AbstractScalarExprNode{T}, ::Nothing, ::Quantity, ::AbstractVector{T}, ::Options
 ) where {T}
     return error("This should never happen. Please submit a bug report.")
 end
 function violates_dimensional_constraints(
-    ::AbstractExpressionNode{T}, ::Nothing, ::Nothing, ::AbstractVector{T}, ::Options
+    ::AbstractScalarExprNode{T}, ::Nothing, ::Nothing, ::AbstractVector{T}, ::Options
 ) where {T}
     return false
 end

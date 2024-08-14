@@ -228,7 +228,7 @@ const OPTION_DESCRIPTIONS = """- `binary_operators`: Vector of binary operators 
             - `SigmoidLoss()`,
             - `DWDMarginLoss(q)`.
 - `loss_function`: Alternatively, you may redefine the loss used
-    as any function of `tree::AbstractExpressionNode{T}`, `dataset::Dataset{T}`,
+    as any function of `tree::AbstractScalarExprNode{T}`, `dataset::Dataset{T}`,
     and `options::Options`, so long as you output a non-negative
     scalar of type `T`. This is useful if you want to use a loss
     that takes into account derivatives, or correlations across

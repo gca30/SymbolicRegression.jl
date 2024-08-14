@@ -31,12 +31,12 @@ for (loss_fnc, evaluator) in [(L1DistLoss(), testl1), (customloss, customloss)]
 end
 
 function custom_objective_batched(
-    tree::AbstractExpressionNode{T}, dataset::Dataset{T,L}, options, ::Nothing
+    tree::AbstractScalarExprNode{T}, dataset::Dataset{T,L}, options, ::Nothing
 ) where {T,L}
     return one(T)
 end
 function custom_objective_batched(
-    tree::AbstractExpressionNode{T}, dataset::Dataset{T,L}, options, idx
+    tree::AbstractScalarExprNode{T}, dataset::Dataset{T,L}, options, idx
 ) where {T,L}
     return sum(dataset.X[:, idx])
 end

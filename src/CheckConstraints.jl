@@ -1,13 +1,13 @@
 module CheckConstraintsModule
 
-using DynamicExpressions: AbstractExpressionNode, count_depth, tree_mapreduce
+using DynamicExpressions: AbstractScalarExprNode, count_depth, tree_mapreduce
 using ..UtilsModule: vals
 using ..CoreModule: Options
 using ..ComplexityModule: compute_complexity, past_complexity_limit
 
 # Check if any binary operator are overly complex
 function flag_bin_operator_complexity(
-    tree::AbstractExpressionNode, op, cons, options::Options
+    tree::AbstractScalarExprNode, op, cons, options::Options
 )::Bool
     any(tree) do subtree
         if subtree.degree == 2 && subtree.op == op
@@ -27,7 +27,7 @@ Check if any unary operators are overly complex.
 This assumes  you have already checked whether the constraint is > -1.
 """
 function flag_una_operator_complexity(
-    tree::AbstractExpressionNode, op, cons, options::Options
+    tree::AbstractScalarExprNode, op, cons, options::Options
 )::Bool
     any(tree) do subtree
         if subtree.degree == 1 && tree.op == op
@@ -52,7 +52,7 @@ function count_max_nestedness(tree, degree, op)
 end
 
 """Check if there are any illegal combinations of operators"""
-function flag_illegal_nests(tree::AbstractExpressionNode, options::Options)::Bool
+function flag_illegal_nests(tree::AbstractScalarExprNode, options::Options)::Bool
     # We search from the top first, then from child nodes at end.
     (nested_constraints = options.nested_constraints) === nothing && return false
     for (degree, op_idx, op_constraint) in nested_constraints
@@ -71,7 +71,7 @@ end
 
 """Check if user-passed constraints are violated or not"""
 function check_constraints(
-    tree::AbstractExpressionNode,
+    tree::AbstractScalarExprNode,
     options::Options,
     maxsize::Int,
     cursize::Union{Int,Nothing}=nothing,
@@ -93,7 +93,7 @@ function check_constraints(
     return true
 end
 
-check_constraints(tree::AbstractExpressionNode, options::Options)::Bool =
+check_constraints(tree::AbstractScalarExprNode, options::Options)::Bool =
     check_constraints(tree, options, options.maxsize)
 
 end

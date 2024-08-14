@@ -8,7 +8,7 @@ using Distributed
 using StatsBase: mean
 using DispatchDoctor: @unstable
 
-using DynamicExpressions: AbstractExpressionNode, string_tree
+using DynamicExpressions: AbstractScalarExprNode, string_tree
 using ..UtilsModule: subscriptify
 using ..CoreModule: Dataset, Options, MAX_DEGREE, RecordType
 using ..ComplexityModule: compute_complexity
@@ -387,7 +387,7 @@ channels. This is used to manage the search and keep track of runtime variables
 in a single struct.
 """
 Base.@kwdef struct SearchState{
-    T,L,N<:AbstractExpressionNode{T},WorkerOutputType,ChannelType
+    T,L,N<:AbstractScalarExprNode{T},WorkerOutputType,ChannelType
 }
     procs::Vector{Int}
     we_created_procs::Bool
